@@ -1,69 +1,81 @@
 import sqlite3
 from sqlite3 import Error
+import pandas as pd
+from datetime import datetime
 
-def main():
-    database = r"reddit-sqlite.db"
+class Database:
+    def __init__(self, database: str):
+        self.database = database
+        self.conn = None 
 
-    # Create a database connection
-    conn = create_connection(database)
-    if conn is not None:
-        # Create comments table
-        create_table(conn)
-        # Insert comment data
-        comment_data = (1, '2013-02-01', 'subreddit_name', 'author_name', 'This is a comment', 'HSBC', 100) # Amend this with my comment data
-        insert_comment(conn, comment_data)
+    def create_connection(self):
+        """Create a database connection and store it in the instance."""
+        try:
+            self.conn = sqlite3.connect(self.database)
+            print("Connection to SQLite DB successful")
+        except Error as e:
+            print(f"The error '{e}' occurred")
 
-        # Close connection
-        conn.close()
-    else:
-        print("Error! Cannot create the database connection.")
+    def close_connection(self):
+        """Close the database connection."""
+        if self.conn:
+            self.conn.close()
+            print("Connection to SQLite DB closed")
 
-def create_connection(db_file):
-    """ create a database connection to a SQLite database """
-    conn = None
-    try:
-        conn = sqlite3.connect(db_file)
-        print(sqlite3.version)
-    except Error as e:
-        print(e)
-    else:
-        if conn:
-            try:
-                create_table(conn)
-            except Error as e:
-                print(e)
+    def create_table(self, create_table_sql):
+        """Create a table from the create_table_sql statement."""
+        try:
+            c = self.conn.cursor()
+            c.execute(create_table_sql)
+        except Error as e:
+            print(f"The error '{e}' occurred")
 
-    return conn
+    def insert_data_from_df(self, df, table_name):
+        """Insert new data from a DataFrame into the specified table."""
+        try:
+            df.to_sql(table_name, self.conn, if_exists='append', index=False)
+            print(f"Data inserted successfully into {table_name}.")
+        except Error as e:
+            print(f"The error '{e}' occurred")
 
-def create_table(conn):
-    """Create a table in the provided database connection"""
+    def create_timestamp_table(self):
+        """Create a table to store the script's last run time."""
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS script_metadata (
+            id INTEGER PRIMARY KEY,
+            last_run_time TEXT
+        );
+        """
+        self.create_table(create_table_sql)
 
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS comments (
-        id text PRIMARY KEY,
-        date text NOT NULL,
-        subreddit text NOT NULL,
-        comment_author text NOT NULL,
-        comment text NOT NULL,
-        matched_phrase text NOT NULL,
-        upvotes integer NOT NULL
-    );
-    """
+    def update_last_run_time(self, last_run_time):
+        """Update the last run time in the script_metadata table."""
+        update_sql = """
+        INSERT INTO script_metadata (id, last_run_time)
+        VALUES (1, ?)
+        ON CONFLICT(id) DO UPDATE SET last_run_time = excluded.last_run_time;
+        """
+        try:
+            c = self.conn.cursor()
+            c.execute(update_sql, (last_run_time.isoformat(),))
+            self.conn.commit()
+        except Error as e:
+            print(f"The error '{e}' occurred")
 
-    try:
-        c = conn.cursor()
-        c.execute(create_table_sql)
-    except Error as e:
-        print(e)      
+    def get_last_run_time_from_db(self):
+        """Retrieve the last run time from the script_metadata table."""
+        select_sql = "SELECT last_run_time FROM script_metadata WHERE id = 1;"
+        try:
+            c = self.conn.cursor()
+            c.execute(select_sql)
+            result = c.fetchone()
+            if result:
+                return datetime.fromisoformat(result[0])
+            else:
+                return datetime.min  # Or a default value
+        except Error as e:
+            print(f"The error '{e}' occurred")
+            return datetime.min  # Or a default value
 
-def insert_comment(conn, comment):
-    """Insert a new comment into the comments table"""
-    sql = ''' INSERT INTO comments(id, date, subreddit, comment_author, comment, matched_phrase, upvotes)
-              VALUES(?,?,?,?,?, ?, ?) '''
-    cur = conn.cursor()
-    cur.execute(sql, comment)
-    conn.commit()
-    return cur.lastrowid      
 
-if __name__ == '__main__':
-    main()
+
