@@ -1,81 +1,62 @@
-import sqlite3
-from sqlite3 import Error
 import pandas as pd
-from datetime import datetime
+import sqlite3
+import logging
 
-class Database:
-    def __init__(self, database: str):
-        self.database = database
-        self.conn = None 
+class DatabaseManager:
+    def __init__(self, db_path):
+        self.db_path = db_path
+        self.conn = None
 
-    def create_connection(self):
-        """Create a database connection and store it in the instance."""
-        try:
-            self.conn = sqlite3.connect(self.database)
-            print("Connection to SQLite DB successful")
-        except Error as e:
-            print(f"The error '{e}' occurred")
+    def connect(self):
+        """Establish a database connection."""
+        self.conn = sqlite3.connect(self.db_path)
+        logging.info("Database connection established.")
 
-    def close_connection(self):
+    def create_table(self):
+        """Create the comments table if it doesn't exist."""
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS comments (
+            comment_id TEXT PRIMARY KEY,
+            post_title TEXT,
+            subreddit TEXT,
+            comment_date TEXT,
+            comment_author TEXT,
+            comment TEXT,
+            matched_phrase TEXT,
+            upvotes INTEGER
+        );
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(create_table_sql)
+        self.conn.commit()
+        logging.info("Table 'comments' ready.")
+
+    def get_existing_comment_ids(self):
+        """Fetch existing comment IDs from the database."""
+        query = "SELECT comment_id FROM comments"
+        existing_ids = pd.read_sql(query, self.conn)
+        return set(existing_ids['comment_id'])
+
+    def insert_new_comments(self, df):
+        """Insert new comments into the database, avoiding duplicates."""
+        if self.conn is None:
+            logging.error("Database connection not established.")
+            return
+
+        existing_comment_ids = self.get_existing_comment_ids()
+        df_new_comments = df[~df['comment_id'].isin(existing_comment_ids)]
+
+        if not df_new_comments.empty:
+            df_new_comments.to_sql('comments', self.conn, if_exists='append', index=False)
+            logging.info("New data inserted successfully.")
+        else:
+            logging.info("No new comments to insert.")
+
+    def close(self):
         """Close the database connection."""
         if self.conn:
             self.conn.close()
-            print("Connection to SQLite DB closed")
-
-    def create_table(self, create_table_sql):
-        """Create a table from the create_table_sql statement."""
-        try:
-            c = self.conn.cursor()
-            c.execute(create_table_sql)
-        except Error as e:
-            print(f"The error '{e}' occurred")
-
-    def insert_data_from_df(self, df, table_name):
-        """Insert new data from a DataFrame into the specified table."""
-        try:
-            df.to_sql(table_name, self.conn, if_exists='append', index=False)
-            print(f"Data inserted successfully into {table_name}.")
-        except Error as e:
-            print(f"The error '{e}' occurred")
-
-    def create_timestamp_table(self):
-        """Create a table to store the script's last run time."""
-        create_table_sql = """
-        CREATE TABLE IF NOT EXISTS script_metadata (
-            id INTEGER PRIMARY KEY,
-            last_run_time TEXT
-        );
-        """
-        self.create_table(create_table_sql)
-
-    def update_last_run_time(self, last_run_time):
-        """Update the last run time in the script_metadata table."""
-        update_sql = """
-        INSERT INTO script_metadata (id, last_run_time)
-        VALUES (1, ?)
-        ON CONFLICT(id) DO UPDATE SET last_run_time = excluded.last_run_time;
-        """
-        try:
-            c = self.conn.cursor()
-            c.execute(update_sql, (last_run_time.isoformat(),))
-            self.conn.commit()
-        except Error as e:
-            print(f"The error '{e}' occurred")
-
-    def get_last_run_time_from_db(self):
-        """Retrieve the last run time from the script_metadata table."""
-        select_sql = "SELECT last_run_time FROM script_metadata WHERE id = 1;"
-        try:
-            c = self.conn.cursor()
-            c.execute(select_sql)
-            result = c.fetchone()
-            if result:
-                return datetime.fromisoformat(result[0])
-            else:
-                return datetime.min  # Or a default value
-        except Error as e:
-            print(f"The error '{e}' occurred")
-            return datetime.min  # Or a default value
+            logging.info("Database connection closed.")
 
 
 
