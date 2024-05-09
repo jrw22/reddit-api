@@ -20,7 +20,6 @@ class DatabaseManager:
             post_title TEXT,
             subreddit TEXT,
             comment_date TEXT,
-            comment_author TEXT,
             comment TEXT,
             matched_phrase TEXT,
             upvotes INTEGER
@@ -47,7 +46,10 @@ class DatabaseManager:
         df_new_comments = df[~df['comment_id'].isin(existing_comment_ids)]
 
         if not df_new_comments.empty:
-            df_new_comments.to_sql('comments', self.conn, if_exists='append', index=False)
+            df_new_comments.to_sql(name='comments', 
+                                   con=self.conn, 
+                                   if_exists='append', 
+                                   index=False)
             logging.info("New data inserted successfully into 'comments' table")
         else:
             logging.info("No new comments to insert into 'comments' table.")
@@ -76,7 +78,10 @@ class DatabaseManager:
         df_new_comments = df[~df['comment_id'].isin(existing_comment_ids)]
 
         if not df_new_comments.empty:
-            df_new_comments.to_sql('sentiment', self.conn, if_exists='append', index=False)
+            df_new_comments.to_sql(name='sentiment', 
+                                   con=self.conn, 
+                                   if_exists='append', 
+                                   index=False)
             logging.info("New data inserted successfully into 'sentiment' table.")
         else:
             logging.info("No new comments to insert into 'sentiment' table.")
@@ -84,7 +89,7 @@ class DatabaseManager:
     def delete_table(self, table):
         """Delete table"""
 
-        
+
 
     def close(self):
         """Close the database connection."""

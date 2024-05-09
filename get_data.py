@@ -40,8 +40,7 @@ class GetData:
             'subreddit': '', 
             'post_title': '', 
             'comment_id': '', 
-            'comment_date': '', 
-            'comment_author': '', 
+            'comment_date': '',  
             'comment': '', 
             'matched_phrase': '',  # Ensuring it's listed even though it's handled above
             'upvotes': 0,  # Assuming 'upvotes' is numeric
@@ -89,7 +88,6 @@ class GetData:
                             'post_title': post.title,
                             'comment_id': comment.id,
                             'comment_date': comment_date,
-                            'comment_author': str(comment.author),
                             'comment': comment.body,
                             'matched_phrase': pattern_re.search(comment.body).group(0), 
                             'upvotes': comment.score
