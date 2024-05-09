@@ -1,0 +1,34 @@
+name,altname,abbreviation,ticker,altticker,notes
+Allied Irish Bank (UK),,,AIBG.L,,
+Bank of America,,,BAC,,
+Bank of England,,BoE,,,
+Barclays,,,BCS,,
+Citi,Citigroup,,,,
+Credit Suisse,,,CS,,
+Goldman Sachs,,,GS,,
+Halifax,,,,,Part of Lloyds Banking Group - not independently traded
+HSBC,,,HSBC,,
+JPMorgan Chase,JPMorgan,,JPM,,
+Lloyds,,,LYG,,
+Metro,,,MTRO.L,MTRO,
+Monzo,,,,,
+Morgan Stanley,,,MS,,
+NatWest,,,NWG,,
+PNC,,,PNC,,
+Revolut,,,,,
+Royal Bank of Canada,,RBC,RY,,
+Royal Bank of Scotland,,RBS,NWG,,Now rebranded as NatWest Group
+Santander,,,SAN,,Traded in Spain as 'SAN'
+Silicon Valley Bank,,SVB,SIVBQ,,
+Standard Chartered,,SC,SCBFF,,
+Starling,,,,,
+The Bank of New York Mellon Corporation,BNY Mellon,BNY,BK,,
+The Co-operative Bank,,COOP,,,Not publicly tradedTSB Bank
+Toronto-Dominion Bank,TD Bank,TD,TD,,
+Truist,,,TFC,,
+TSB,,,,,TSB Banking Group plc was acquired by Banco Sabadell; not independently traded
+U.S. Bancorp,,USB,USB,,
+Virgin Money,,,VMUK,,
+Wells Fargo,,,WFC,,
+Westpac Banking Corporation, Westpac,,WBC,,
+
