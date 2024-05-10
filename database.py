@@ -1,6 +1,7 @@
 import pandas as pd
 import sqlite3
 import logging
+from datetime import datetime, timedelta
 
 class DatabaseManager:
     def __init__(self, db_path):
@@ -11,6 +12,17 @@ class DatabaseManager:
         """Establish a database connection."""
         self.conn = sqlite3.connect(self.db_path)
         logging.info("Database connection established.")
+
+    def get_data(self, n_previous_days:int):
+        """Retrieve data from comments table for past n days"""
+        today = datetime.now()
+        n_days_ago = today - timedelta(days=n_previous_days)
+        query = """
+        SELECT * FROM comments
+        WHERE comment_date >= ?
+        """
+        df = pd.read_sql_query(query, self.conn, params=[n_days_ago])
+        return df
 
     def create_raw_table(self):
         """Create the comments table if it doesn't exist."""
@@ -84,12 +96,50 @@ class DatabaseManager:
                                    index=False)
             logging.info("New data inserted successfully into 'sentiment' table.")
         else:
-            logging.info("No new comments to insert into 'sentiment' table.")
+            logging.info("No new data to insert into 'sentiment' table.")
 
-    def delete_table(self, table):
-        """Delete table"""
+    def create_topics_table(self):
+        """Create the topic modelling table if it doesn't exist."""
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS topics (
+            topic INTEGER,
+            count INTEGER,
+            name TEXT PRIMARY KEY,
+            representation TEXT,
+            keybert TEXT,
+            mmr TEXT,
+            date TEXT
+        );
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(create_table_sql)
+        self.conn.commit()
+        logging.info("Table 'topics' ready.")
 
+    def get_latest_date(self):
+        """Get latest date from the topics table"""
+        query = "SELECT date FROM topics ORDER BY date DESC LIMIT 1"
+        latest_date = pd.read_sql(query, self.conn)
+        # Format to datetime object
+        latest_date = latest_date['date'][0]
+        return latest_date
 
+    def update_topics_table(self, df):
+        """Insert new comments into the table with sentiment, avoiding duplicates."""
+        if self.conn is None:
+            logging.error("Database connection not established.")
+            return
+        
+        # Only add topics once per day by checking if data already exists for that date
+        latest_date = self.get_latest_date()
+        if df.iloc[-1]['date'] != latest_date:
+            df.to_sql(name='topics', 
+                        con=self.conn, 
+                        if_exists='append', 
+                        index=False)
+            logging.info("New data inserted successfully into 'topics' table.")
+        else:
+            logging.info("No new topics to insert into 'topics' table.")
 
     def close(self):
         """Close the database connection."""
