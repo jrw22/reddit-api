@@ -23,6 +23,8 @@ class DatabaseManager:
         """
         df = pd.read_sql_query(query, self.conn, params=[n_days_ago])
         return df
+    
+    ### --- Raw data table --- ###
 
     def create_raw_table(self):
         """Create the comments table if it doesn't exist."""
@@ -65,6 +67,8 @@ class DatabaseManager:
             logging.info("New data inserted successfully into 'comments' table")
         else:
             logging.info("No new comments to insert into 'comments' table.")
+    
+    ### --- Sentiment table --- ###
 
     def create_sentiment_table(self):
         """Create the sentiment table if it doesn't exist."""
@@ -81,7 +85,7 @@ class DatabaseManager:
         logging.info("Table 'sentiment' ready.")
     
     def update_sentiment_table(self, df):
-        """Insert new comments into the table with sentiment, avoiding duplicates."""
+        """Insert new data into the sentiment table."""
         if self.conn is None:
             logging.error("Database connection not established.")
             return
@@ -98,17 +102,26 @@ class DatabaseManager:
         else:
             logging.info("No new data to insert into 'sentiment' table.")
 
-    def create_topics_table(self):
-        """Create the topic modelling table if it doesn't exist."""
+    ### --- Topics table --- ###
+
+    def get_latest_date(self, table:str):
+        """Get latest date from the topics table"""
+        query = f"SELECT date FROM {table} ORDER BY date DESC LIMIT 1"
+        latest_date = pd.read_sql(query, self.conn)
+        # Format to datetime object
+        latest_date = latest_date['date'][0]
+        return latest_date
+
+    def create_topic_summaries_table(self):
+        """Create the topic_summaries table if it doesn't exist."""
         create_table_sql = """
-        CREATE TABLE IF NOT EXISTS topics (
+        CREATE TABLE IF NOT EXISTS topic_summaries (
+            date TEXT,
             topic INTEGER,
-            count INTEGER,
-            name TEXT PRIMARY KEY,
-            representation TEXT,
+            summary TEXT,
             keybert TEXT,
             mmr TEXT,
-            date TEXT
+            size INTEGER
         );
         """
         cursor = self.conn.cursor()
@@ -116,30 +129,18 @@ class DatabaseManager:
         self.conn.commit()
         logging.info("Table 'topics' ready.")
 
-    def get_latest_date(self):
-        """Get latest date from the topics table"""
-        query = "SELECT date FROM topics ORDER BY date DESC LIMIT 1"
-        latest_date = pd.read_sql(query, self.conn)
-        # Format to datetime object
-        latest_date = latest_date['date'][0]
-        return latest_date
-
-    def update_topics_table(self, df):
-        """Insert new comments into the table with sentiment, avoiding duplicates."""
+    def update_topic_summaries_table(self, df):
+        """Insert new data into the topic_summaries table."""
         if self.conn is None:
             logging.error("Database connection not established.")
             return
         
-        # Only add topics once per day by checking if data already exists for that date
-        latest_date = self.get_latest_date()
-        if df.iloc[-1]['date'] != latest_date:
-            df.to_sql(name='topics', 
-                        con=self.conn, 
-                        if_exists='append', 
-                        index=False)
-            logging.info("New data inserted successfully into 'topics' table.")
-        else:
-            logging.info("No new topics to insert into 'topics' table.")
+        df.to_sql(name='topic_summaries', 
+                    con=self.conn, 
+                    if_exists='append', 
+                    index=False)
+        logging.info("New data inserted successfully into 'topic_summaries' table.")
+
 
     def close(self):
         """Close the database connection."""
