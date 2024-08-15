@@ -4,8 +4,9 @@ import logging
 import re
 
 class GetData:
-    def __init__(self, reddit_client, firm_list_path: str, subreddits: list):
-        self.reddit_client = reddit_client
+    def __init__(self, api_connection, firm_list_path: str, subreddits: list):
+        self.api_connection = api_connection
+        self.reddit_client = api_connection.initialise_client()
         self.firm_list_path = firm_list_path
         self.subreddits = subreddits
     
@@ -53,7 +54,6 @@ class GetData:
 
         return df
 
-
     def get_comments(self, comment_target, last_run_time):
         data = []
         seen_comment_ids = set()
@@ -70,14 +70,16 @@ class GetData:
             logging.info(f"Fetching from r/{subreddit}...")
             subreddit_data = self.reddit_client.subreddit(subreddit)
 
-            for post in subreddit_data.new(limit=None):  # Fetch as many as needed, but filter by date
+            for post in self.api_connection.make_api_call(subreddit_data.new, limit=None):  # Fetch as many as needed, but filter by date
                 post_creation_time = datetime.datetime.fromtimestamp(post.created_utc)
                 if post_creation_time < one_day_ago:
                     continue
 
                 logging.info("Processing post: {}".format(post.title))
                 post.comments.replace_more(limit=0)
+                self.api_connection.api_counter.increment() # increment api call
                 for comment in post.comments.list():
+                    self.api_connection.api_counter.increment() # increment api call
                     if comment.id in seen_comment_ids or datetime.datetime.fromtimestamp(comment.created_utc) <= last_run_time:
                         continue
 
