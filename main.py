@@ -2,10 +2,11 @@
 import logging
 import datetime
 import pandas as pd
+import os
+from datetime import datetime
 
 # Related 3rd party imports
 import praw 
-from datetime import datetime
 
 # Local imports
 from api import APIConnection
@@ -17,21 +18,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 ### --- CONNECT TO API --- ###
 
-CLIENT_ID= ''
-CLIENT_SECRET= ''
-USER_AGENT= ''
+CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
+CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
+USER_AGENT= os.environ.get("REDDIT_USER_AGENT")
 api_connection = APIConnection(CLIENT_ID, CLIENT_SECRET, USER_AGENT)
 
 ### --- EXTRACT COMMENT DATA --- ###
 
 # Initialise data collection class
 data_inst = GetData(api_connection=api_connection,
-                    firm_list_path="",
+                    firm_list_path="firms.csv",
                     subreddits=['wallstreetbets', 'investing', 'stocks', 'SecurityAnalysis', 'finance'])
 
 # Get last run time - only want to check comments since the last run time 
 try:
-    with open("", "r") as f:
+    with open("last_run_time.txt", "r") as f:
         last_run_time_str = f.read().strip()
     last_run_time = datetime.strptime(last_run_time_str, '%Y-%m-%d %H:%M:%S')
 except FileNotFoundError:
@@ -52,17 +53,16 @@ except Exception as e:
 # Update last run time
 last_run_time = datetime.now()
 try:
-    with open("", "w")  as f:
+    with open("last_run_time.txt", "w")  as f:
         f.write(last_run_time.strftime('%Y-%m-%d %H:%M:%S'))
 except FileNotFoundError:
     logging.error(f"last_run_time.txt not found.")
-
 
 ### --- WRITE DATA TO DATABASE --- ###
 
 # Connect to db
 try:
-    database_manager = DatabaseManager(db_path="")
+    database_manager = DatabaseManager(db_path="reddit-sqlite.db")
     database_manager.connect()
 except Exception as e:
     logging.error(f"Error connecting to database: {e}")
@@ -77,7 +77,7 @@ except Exception as e:
 logging.info(f"Total API calls made: {api_connection.get_total_calls()}")
 
 ### --- ANALYSIS --- ###
-    
+   
 ## Sentiment analysis
 try:
     sent_df = an.get_sentiment(df, 'comment')
@@ -95,7 +95,7 @@ except Exception as e:
 ## Topic modelling and Summarisation
     
 # Check if it's been ran today - compute intensive so only run once a day
-latest_date = database_manager.get_latest_date(table='topics')
+latest_date = database_manager.get_latest_date(table='topic_summaries')
 latest_date = datetime.strptime(latest_date, '%Y-%m-%d').date()
 if datetime.today().date() != latest_date:
     
@@ -108,7 +108,7 @@ if datetime.today().date() != latest_date:
     
     # Topic modelling
     try:
-        topics, topics_info = an.get_topics(comments, hdbscan_min_cluster_size=int(len(recent_df)/20))
+        topics, topics_info = an.get_topics(comments, hdbscan_min_cluster_size=10)
     except Exception as e:
         logging.error(f"Error conducting topic modelling: {e}")
 
@@ -125,11 +125,10 @@ if datetime.today().date() != latest_date:
     except Exception as e:
         logging.error(f"Error adding new data to topics_summary table: {e}")
 
-else:
+# else:
     logging.info("Topic modelling already conducted today.")
 
 ### --- CLEAN UP --- ###
 
 # Close connection to db
 database_manager.close()
-
