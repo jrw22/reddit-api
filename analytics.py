@@ -106,6 +106,7 @@ def get_topics(comments: list,
 
     return topics, topic_info
 
+
 def summarise(
         text_to_summarise:str,
         model_path:str="bart-cnn-large", 
@@ -135,13 +136,10 @@ def summarise(
     * length_penalty `float`: penalty for a summary that is too short or too long.
     * early_stopping `bool`: whether to stop once the model is sure about the output.
     * num_beams `int`: number of beams for beam search.
-    * no_repeat_ngram_size `int`: minimum size of ngrams to not be repeated in the summary.
-    * top_k:
-    * top_p:
     
     Returns:
     --------
-    summary_df `pd.DataFrame`: a DataFrame with a summary and date field. 
+    final_summary `str`: the summarized text.
     """
     summariser = BartForConditionalGeneration.from_pretrained(model_path)
     tokeniser = BartTokenizer.from_pretrained(model_path)
@@ -231,6 +229,4 @@ def topic_summarisation(comments: list, topics, topic_info)->pd.DataFrame:
     logging.info("Topics summarisation completed.")
 
     return df_summaries
-
-    
 
